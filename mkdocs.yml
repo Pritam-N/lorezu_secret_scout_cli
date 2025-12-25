@@ -1,0 +1,12 @@
+site_name: My Typer App
+theme:
+  name: material
+
+plugins:
+  - search
+  - typer2: # This plugin auto-docs your CLI
+      pretty: true # Formats options in a nice table
+
+nav:
+  - Home: index.md
+  - CLI Reference: cli.md

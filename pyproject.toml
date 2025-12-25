@@ -1,0 +1,27 @@
+[project]
+name = "my-typer-app"
+version = "0.1.0"
+dependencies = [
+    "typer[all]>=0.12.0",
+    "pydantic-settings>=2.0.0",  # Good for CLI config management
+]
+requires-python = ">=3.9"
+
+[project.scripts]
+# This creates the actual terminal command
+my-app = "my_app.cli:app"
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"] # pycodestyle, pyflakes, isort, pyupgrade
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[build-system]
+requires = ["hatchling"]  # or "poetry-core"
+build-backend = "hatchling.build"
