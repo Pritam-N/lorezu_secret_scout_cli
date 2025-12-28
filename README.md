@@ -237,7 +237,7 @@ secret-scout/
 
 ## Architecture
 
-> 📖 For detailed architecture documentation, see [docs/ARCH.md](docs/ARCH.md)
+> 📖 For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md)
 
 ### Data Contracts
 

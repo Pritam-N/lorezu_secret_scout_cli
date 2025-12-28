@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from scout.core.models import ScanConfig
+from scout.core.models import ScanConfig, UIConfig
 
 # Python 3.11+ has tomllib; for 3.9/3.10 use tomli
 try:
@@ -74,6 +74,7 @@ def find_global_config() -> Optional[Path]:
 @dataclass(frozen=True)
 class LoadedConfig:
     config: ScanConfig
+    ui_config: UIConfig
     global_path: Optional[Path]
     repo_path: Optional[Path]
 
@@ -107,10 +108,21 @@ def load_scan_config(
     # CLI overrides are expected to be in the same shape as TOML (namespaced)
     merged = _deep_merge(merged, cli_overrides)
 
-    # We only care about [scan] for ScanConfig
+    # Extract [scan] section for ScanConfig
     scan_dict = merged.get("scan") or {}
     if not isinstance(scan_dict, dict):
         scan_dict = {}
-
     config = ScanConfig.model_validate(scan_dict)
-    return LoadedConfig(config=config, global_path=global_path, repo_path=repo_path)
+
+    # Extract [ui] section for UIConfig
+    ui_dict = merged.get("ui") or {}
+    if not isinstance(ui_dict, dict):
+        ui_dict = {}
+    ui_config = UIConfig.model_validate(ui_dict)
+
+    return LoadedConfig(
+        config=config,
+        ui_config=ui_config,
+        global_path=global_path,
+        repo_path=repo_path,
+    )

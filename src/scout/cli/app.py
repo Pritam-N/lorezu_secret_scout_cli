@@ -3,59 +3,50 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 
-# Root Typer app
+from scout.cli.commands.init import app as init_app
+from scout.cli.commands.scan_path import app as scan_path_app
+from scout.cli.commands.scan_github import app as scan_github_app
+from scout.cli.commands.rules import app as rules_app
+from scout.cli.commands.baseline import app as baseline_app
+
 app = typer.Typer(
-    name="secret-scout",
-    help="Prevent accidental secret leaks by scanning repos for risky files and patterns.",
-    add_completion=True,
+    name="scout",
+    help="Prevent accidental secret commits by scanning repos, folders, and GitHub org/user repos.",
+    add_completion=False,
     no_args_is_help=True,
 )
 
 console = Console()
 
 
-# --- Commands / Sub-apps ---
-# Keep these imports inside try/except if you're still building modules incrementally.
-
-from scout.cli.commands.init import app as init_app  # noqa: E402
-
-# Mount subcommands
-app.add_typer(init_app, name="project")  # secret-scout project init
+def _version_callback(value: bool) -> None:
+    if value:
+        # keep version single source of truth later (importlib.metadata)
+        console.print("scout 0.1.0")
+        raise typer.Exit(0)
 
 
-# Optional: convenience alias so you can do `secret-scout init`
-@app.command("init")
-def init_alias(
-    directory: str = typer.Argument(".", help="Repo directory to initialize"),
-    force: bool = typer.Option(False, "--force", help="Overwrite existing files."),
-    strict: bool = typer.Option(
-        False, "--strict", help="Generate strict starter rules template."
-    ),
-    no_gitignore: bool = typer.Option(
-        False, "--no-gitignore", help="Do not create .secret-scout/.gitignore"
-    ),
-    no_readme: bool = typer.Option(
-        False, "--no-readme", help="Do not create .secret-scout/README.md"
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False, "--version", help="Show version and exit.", callback=_version_callback
     ),
 ) -> None:
-    # Import the command function directly to avoid circular imports
-    from pathlib import Path
-    from scout.cli.commands.init import init_cmd  # noqa: E402
-
-    init_cmd(
-        directory=Path(directory),
-        force=force,
-        strict=strict,
-        no_gitignore=no_gitignore,
-        no_readme=no_readme,
-    )
+    pass
 
 
-from scout.cli.commands.scan_path import scan_cmd  # noqa: E402
+# Register command groups
+app.add_typer(init_app, name="init")
+app.add_typer(scan_path_app, name="scan")
+app.add_typer(scan_github_app, name="github")
+app.add_typer(rules_app, name="rules")
+app.add_typer(baseline_app, name="baseline")
 
-# Register scan command directly: secret-scout scan . OR secret-scout scan --path .
-app.command("scan")(scan_cmd)
-
-from scout.cli.commands.scan_github import app as scan_github_app  # noqa: E402
-
-app.add_typer(scan_github_app, name="github")  # secret-scout github --org OR --user
+# Optional direct aliases:
+# scout scan-path .
+# scout scan-github --org X
+# If you want these, uncomment:
+# from scout.cli.commands.scan_path import scan_path_cmd
+# from scout.cli.commands.scan_github import scan_github_cmd
+# app.command("scan-path")(scan_path_cmd)
+# app.command("scan-github")(scan_github_cmd)

@@ -161,6 +161,33 @@ def render_errors(
 # Summaries / stats
 # ----------------------------
 
+# def render_scan_summary(
+#     console: Console,
+#     result: ScanResult,
+#     *,
+#     header: str = "Summary",
+#     extra_lines: Optional[List[str]] = None,
+# ) -> None:
+#     console.print()
+#     console.print(f"[bold]{header}:[/bold]")
+
+#     scanner = ""
+#     if result.targets and result.targets[0].meta:
+#         scanner = str(result.targets[0].meta.get("scanner", ""))
+
+#     s = result.stats
+#     console.print(f"  scanner:          {scanner or '-'}")
+#     console.print(f"  files_considered: {s.files_considered}")
+#     console.print(f"  files_scanned:    {s.files_scanned}")
+#     console.print(f"  skipped_binary:   {getattr(s, 'files_skipped_binary', 0)}")
+#     console.print(f"  skipped_large:    {getattr(s, 'files_skipped_too_large', 0)}")
+#     console.print(f"  findings:         {s.findings}")
+#     console.print(f"  duration_ms:      {s.duration_ms}")
+
+#     if extra_lines:
+#         for line in extra_lines:
+#             console.print(f"  {line}")
+
 def render_scan_summary(
     console: Console,
     result: ScanResult,
@@ -168,26 +195,57 @@ def render_scan_summary(
     header: str = "Summary",
     extra_lines: Optional[List[str]] = None,
 ) -> None:
-    console.print()
-    console.print(f"[bold]{header}:[/bold]")
+    extra_lines = extra_lines or []
 
-    scanner = ""
-    if result.targets and result.targets[0].meta:
-        scanner = str(result.targets[0].meta.get("scanner", ""))
+    # infer scanner
+    scanner = "-"
+    try:
+        if result.targets and result.targets[0].meta:
+            scanner = str(result.targets[0].meta.get("scanner", "-"))
+    except Exception:
+        scanner = "-"
 
     s = result.stats
-    console.print(f"  scanner:          {scanner or '-'}")
-    console.print(f"  files_considered: {s.files_considered}")
-    console.print(f"  files_scanned:    {s.files_scanned}")
-    console.print(f"  skipped_binary:   {getattr(s, 'files_skipped_binary', 0)}")
-    console.print(f"  skipped_large:    {getattr(s, 'files_skipped_too_large', 0)}")
-    console.print(f"  findings:         {s.findings}")
-    console.print(f"  duration_ms:      {s.duration_ms}")
 
-    if extra_lines:
-        for line in extra_lines:
-            console.print(f"  {line}")
+    cols: List[str] = [
+        "scanner",
+        "files_considered",
+        "files_scanned",
+        "skipped_binary",
+        "skipped_large",
+        "findings",
+        "errors",
+        "duration_ms",
+    ]
 
+    vals: List[str] = [
+        scanner,
+        str(getattr(s, "files_considered", 0)),
+        str(getattr(s, "files_scanned", 0)),
+        str(getattr(s, "files_skipped_binary", 0)),
+        str(getattr(s, "files_skipped_too_large", 0)),
+        str(len(result.findings)),
+        str(len(result.errors)),
+        str(getattr(s, "duration_ms", 0)),
+    ]
+
+    # Allow optional extras like "workspace: /tmp/..." as additional columns
+    for line in extra_lines:
+        if ":" in line:
+            k, v = line.split(":", 1)
+            cols.append(k.strip())
+            vals.append(v.strip())
+        else:
+            cols.append("note")
+            vals.append(line)
+
+    table = Table(title=header, show_header=True, show_lines=False)
+    for c in cols:
+        table.add_column(c, style="bold", no_wrap=True)
+    table.add_row(*vals)
+
+    console.print()
+    console.print(table)
 
 # ----------------------------
 # Top offenders (repos / files / rules)

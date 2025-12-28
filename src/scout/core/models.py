@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 # Enums
 # ================================
 
+
 class Severity(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
@@ -26,6 +27,7 @@ class RuleType(str, Enum):
 
 class MatchScope(str, Enum):
     LINE = "line"
+    BLOCK = "block"
     FILE = "file"
 
 
@@ -61,16 +63,23 @@ class ValuePolicy(str, Enum):
 # Rule sub-configs
 # ================================
 
+
 class FilenameRuleConfig(BaseModel):
-    pattern: str = Field(..., min_length=1, description="Pattern to match against rel_path")
+    pattern: str = Field(
+        ..., min_length=1, description="Pattern to match against rel_path"
+    )
     pattern_type: Literal["regex", "glob"] = Field(default="regex")
 
 
 class RegexRuleConfig(BaseModel):
-    regex: str = Field(..., min_length=1, description="Regex pattern to match against content")
+    regex: str = Field(
+        ..., min_length=1, description="Regex pattern to match against content"
+    )
     scope: MatchScope = Field(default=MatchScope.LINE)
     max_matches: int = Field(default=3, ge=1, le=100)
-    multiline: bool = Field(default=False, description="If scope=file, allow multiline patterns")
+    multiline: bool = Field(
+        default=False, description="If scope=file, allow multiline patterns"
+    )
 
 
 class StructuredRuleConfig(BaseModel):
@@ -86,6 +95,7 @@ class StructuredRuleConfig(BaseModel):
 # ================================
 # Rule + RuleSet
 # ================================
+
 
 class Rule(BaseModel):
     id: str = Field(..., min_length=3, max_length=200)
@@ -158,6 +168,7 @@ class RuleSet(BaseModel):
 # Scan Targets + file candidates
 # ================================
 
+
 class GitHubTargetMeta(BaseModel):
     org: Optional[str] = None
     user: Optional[str] = None
@@ -186,6 +197,7 @@ class FileCandidate(BaseModel):
 # ================================
 # Findings + results
 # ================================
+
 
 class Finding(BaseModel):
     target: str
@@ -261,8 +273,28 @@ class ScanConfig(BaseModel):
     Defaults live here.
     Repo/global/CLI overrides are merged by core/config.py (do NOT load config in defaults).
     """
+
     max_file_bytes: int = Field(default=DEFAULT_MAX_FILE_BYTES, ge=1)
     skip_dirs: List[str] = Field(default_factory=lambda: list(DEFAULT_SKIP_DIRS))
     redact: bool = True
     include_ignored: bool = False
     deterministic: bool = True
+
+
+# ================================
+# UI config (defaults only)
+# ================================
+
+DEFAULT_EDITORS = ["cursor", "code", "subl", "zed", "nvim", "vim"]
+
+
+class UIConfig(BaseModel):
+    """
+    UI preferences. Defaults live here.
+    Repo/global/CLI overrides are merged by core/config.py.
+    """
+
+    editors: List[str] = Field(
+        default_factory=lambda: list(DEFAULT_EDITORS),
+        description="Preferred editor launchers. First match wins. Can also override at runtime with SCOUT_EDITOR, VISUAL, or EDITOR.",
+    )

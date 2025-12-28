@@ -26,6 +26,11 @@ skip_dirs = [
   "dist",
   "build",
 ]
+
+[ui]
+# Preferred editor launchers. First match wins.
+# You can also override at runtime with SCOUT_EDITOR, VISUAL, or EDITOR.
+editors = ["cursor", "code", "subl", "zed", "nvim", "vim"]
 ```
 
 ### Options
@@ -37,6 +42,12 @@ skip_dirs = [
 | `include_ignored` | bool | `false` | Scan git-ignored files |
 | `deterministic` | bool | `true` | Sort output for reproducibility |
 | `skip_dirs` | list | (see above) | Directories to skip |
+
+### UI Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `editors` | list | `["cursor", "code", "subl", "zed", "nvim", "vim"]` | Preferred editor launchers for opening findings. First match wins. Can also override at runtime with `SCOUT_EDITOR`, `VISUAL`, or `EDITOR` environment variables. |
 
 ---
 

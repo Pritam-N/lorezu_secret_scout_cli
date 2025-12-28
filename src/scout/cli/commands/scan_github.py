@@ -18,9 +18,15 @@ from scout.cli.ui import (
 )
 from scout.cli.ui.progress import build_progress, bump, init_tasks
 from scout.cli.ui.tui import run_tui
+from scout.core.config import find_global_config, load_scan_config
 from scout.core.errors import ExitCode
 from scout.core.models import Finding, ScanError
-from scout.scanners.github import GitHubClient, GitHubScanOptions, RepoFilter, scan_github
+from scout.scanners.github import (
+    GitHubClient,
+    GitHubScanOptions,
+    RepoFilter,
+    scan_github,
+)
 
 app = typer.Typer(help="Scan GitHub org/user repos (clones to a temp workspace).")
 
@@ -31,32 +37,91 @@ def _should_use_tui(plain: bool) -> bool:
     return sys.stdout.isatty()
 
 
-@app.command("scan-github")
+@app.command("github")
 def scan_github_cmd(
     org: Optional[str] = typer.Option(None, "--org", help="GitHub org to scan."),
     user: Optional[str] = typer.Option(None, "--user", help="GitHub username to scan."),
-    token: Optional[str] = typer.Option(None, "--token", envvar="GITHUB_TOKEN", help="GitHub token (or set GITHUB_TOKEN)."),
-    api_base: str = typer.Option("https://api.github.com", "--api-base", help="GitHub API base URL."),
-    include: List[str] = typer.Option([], "--include", help="Glob(s) to include by repo full_name (repeatable)."),
-    exclude: List[str] = typer.Option([], "--exclude", help="Glob(s) to exclude by repo full_name (repeatable)."),
-    repo: List[str] = typer.Option([], "--repo", help="Explicit repo full_name allowlist (repeatable, e.g. org/repo)."),
-    include_private: bool = typer.Option(True, "--include-private/--no-include-private", help="Include private repos (needs token)."),
-    include_archived: bool = typer.Option(False, "--include-archived", help="Include archived repos."),
-    include_forks: bool = typer.Option(False, "--include-forks", help="Include forked repos."),
-    max_repos: Optional[int] = typer.Option(None, "--max-repos", help="Limit number of repos scanned."),
-    ignore: List[str] = typer.Option([], "--ignore", help="Glob(s) to ignore within repos (repeatable)."),
-    builtin: str = typer.Option("default", "--builtin", help="Builtin rule pack to use (default/strict)."),
-    rules_file: List[Path] = typer.Option([], "--rules", exists=True, dir_okay=False, help="Extra rule files (repeatable)."),
-    concurrency: int = typer.Option(4, "--concurrency", min=1, max=32, help="Parallel clone+scan workers."),
-    shallow: bool = typer.Option(True, "--shallow/--no-shallow", help="Use shallow clones."),
-    blobless: bool = typer.Option(True, "--blobless/--no-blobless", help="Use blobless clones (faster)."),
-    include_untracked: bool = typer.Option(True, "--include-untracked/--no-include-untracked", help="Include untracked files in repos."),
-    include_ignored: Optional[bool] = typer.Option(None, "--include-ignored/--no-include-ignored", help="Include gitignored files in repos."),
-    tmp_dir: Optional[Path] = typer.Option(None, "--tmp-dir", help="Workspace directory (defaults to temp dir)."),
-    keep_clones: bool = typer.Option(False, "--keep-clones", help="Do not delete workspace when using temp dir."),
-    plain: bool = typer.Option(False, "--plain", help="Disable TUI; print Rich output (CI-friendly)."),
-    fail: bool = typer.Option(True, "--fail/--no-fail", help="Exit 1 if findings are present (CI mode)."),
-    ignore_errors: bool = typer.Option(False, "--ignore-errors", help="Exit 0/1 even if some repos error."),
+    token: Optional[str] = typer.Option(
+        None,
+        "--token",
+        envvar="GITHUB_TOKEN",
+        help="GitHub token (or set GITHUB_TOKEN).",
+    ),
+    api_base: str = typer.Option(
+        "https://api.github.com", "--api-base", help="GitHub API base URL."
+    ),
+    include: List[str] = typer.Option(
+        [], "--include", help="Glob(s) to include by repo full_name (repeatable)."
+    ),
+    exclude: List[str] = typer.Option(
+        [], "--exclude", help="Glob(s) to exclude by repo full_name (repeatable)."
+    ),
+    repo: List[str] = typer.Option(
+        [],
+        "--repo",
+        help="Explicit repo full_name allowlist (repeatable, e.g. org/repo).",
+    ),
+    include_private: bool = typer.Option(
+        True,
+        "--include-private/--no-include-private",
+        help="Include private repos (needs token).",
+    ),
+    include_archived: bool = typer.Option(
+        False, "--include-archived", help="Include archived repos."
+    ),
+    include_forks: bool = typer.Option(
+        False, "--include-forks", help="Include forked repos."
+    ),
+    max_repos: Optional[int] = typer.Option(
+        None, "--max-repos", help="Limit number of repos scanned."
+    ),
+    ignore: List[str] = typer.Option(
+        [], "--ignore", help="Glob(s) to ignore within repos (repeatable)."
+    ),
+    builtin: str = typer.Option(
+        "default", "--builtin", help="Builtin rule pack to use (default/strict)."
+    ),
+    rules_file: List[Path] = typer.Option(
+        [],
+        "--rules",
+        exists=True,
+        dir_okay=False,
+        help="Extra rule files (repeatable).",
+    ),
+    concurrency: int = typer.Option(
+        4, "--concurrency", min=1, max=32, help="Parallel clone+scan workers."
+    ),
+    shallow: bool = typer.Option(
+        True, "--shallow/--no-shallow", help="Use shallow clones."
+    ),
+    blobless: bool = typer.Option(
+        True, "--blobless/--no-blobless", help="Use blobless clones (faster)."
+    ),
+    include_untracked: bool = typer.Option(
+        True,
+        "--include-untracked/--no-include-untracked",
+        help="Include untracked files in repos.",
+    ),
+    include_ignored: Optional[bool] = typer.Option(
+        None,
+        "--include-ignored/--no-include-ignored",
+        help="Include gitignored files in repos.",
+    ),
+    tmp_dir: Optional[Path] = typer.Option(
+        None, "--tmp-dir", help="Workspace directory (defaults to temp dir)."
+    ),
+    keep_clones: bool = typer.Option(
+        False, "--keep-clones", help="Do not delete workspace when using temp dir."
+    ),
+    plain: bool = typer.Option(
+        False, "--plain", help="Disable TUI; print Rich output (CI-friendly)."
+    ),
+    fail: bool = typer.Option(
+        True, "--fail/--no-fail", help="Exit 1 if findings are present (CI mode)."
+    ),
+    ignore_errors: bool = typer.Option(
+        False, "--ignore-errors", help="Exit 0/1 even if some repos error."
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="Print scan summary."),
 ) -> None:
     ui = get_ui(verbose=verbose)
@@ -167,18 +232,35 @@ def scan_github_cmd(
         all_findings.extend(getattr(r, "findings", []) or [])
         all_errors.extend(getattr(r, "errors", []) or [])
 
+    # Load UI config (from global config, if available)
+    ui_config = None
+    try:
+        # Use current directory as start_dir to find config
+        start_dir = Path.cwd()
+        loaded_cfg = load_scan_config(start_dir=start_dir, cli_overrides={})
+        ui_config = loaded_cfg.ui_config
+    except Exception:
+        # If config loading fails, just use defaults
+        pass
+
     # Default: TUI for humans (interactive terminals only)
     if _should_use_tui(plain):
-        run_tui(findings=all_findings, errors=all_errors, result=None)
+        run_tui(
+            findings=all_findings, errors=all_errors, result=None, ui_config=ui_config
+        )
     else:
         render_findings_table(
             console,
             all_findings,
-            opts=FindingsRenderOptions(title=f"Findings ({len(all_findings)})", group_by_target=True),
+            opts=FindingsRenderOptions(
+                title=f"Findings ({len(all_findings)})", group_by_target=True
+            ),
         )
         render_errors(console, all_errors, verbose=ui.verbose)
         if all_findings:
-            render_offenders(console, compute_offenders(all_findings), title="Top offenders")
+            render_offenders(
+                console, compute_offenders(all_findings), title="Top offenders"
+            )
 
         if verbose:
             console.print()
